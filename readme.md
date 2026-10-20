@@ -1,122 +1,52 @@
-# ☕ Cafe Sales Data Cleaning & Processing Pipeline
+Cafe Sales Data Cleaning
 
-![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)
-![Pandas](https://img.shields.io/badge/Pandas-Data%20Analysis-150458.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+Cleaning a messy 10,000-row café sales dataset with Python and pandas, using a no-guessing approach: a value is filled only when it can be derived from the same row. Everything else is kept as missing and marked with a flag column.
 
-An end-to-end Python data cleaning and feature engineering project designed to handle messy, incomplete, and corrupted sales data from a retail/cafe environment. 
+Source data: Dirty Cafe Sales on Kaggle
 
-This project transforms raw transactional data (`dirty_cafe_sales.csv`) containing missing values, mathematical inconsistencies, erroneous entries, and unstandardized text into a production-ready clean dataset (`output.csv`).
+Summary
+	Raw data	Cleaned data
+Rows	10,000	10,000 (no rows dropped)
+Placeholder values (ERROR, UNKNOWN, blanks)	Mixed into every column	Converted to proper missing values or the unknown category
+Numeric columns	Stored as text	float64
+Transaction Date	Text	datetime64
+Total Spent = Quantity × Price Per Unit	Not verifiable	0 mismatches
+Key decisions
+Never guess. Total Spent, Quantity and Price Per Unit are recovered only from the other two, because Total Spent = Quantity × Price Per Unit.
+Item is inferred from price only when the price is unambiguous. Cookie (1.0), Tea (1.5), Coffee (2.0) and Salad (5.0) are unique prices. Prices 3.0 (Cake/Juice) and 4.0 (Sandwich/Smoothie) are shared, so those items stay missing.
+Text columns → unknown. Payment Method and Location have no reliable way to be recovered (the crosstab shows near-equal counts), so missing values become unknown. This keeps them visible in groupby and pivot tables, which silently drop NaN.
+Dates → NaT + flag. The Transaction ID has no relationship to the date (rank correlation ≈ 0.006), so dates cannot be reconstructed.
 
----
+Full reasoning for every step is in cleaning_decisions.md.
 
-## 📌 Project Overview
+Flag columns
+Flag	Meaning	True rows
+Item_missing	Item could not be determined	480
+Date_missing	Transaction date is missing or invalid	460
+Numeric_missing	At least one of Quantity / Price Per Unit / Total Spent is missing	26
+Remaining missing values (intentional)
+Column	Missing
+Item	480
+Quantity	23
+Price Per Unit	6
+Total Spent	23
+Transaction Date	460
+Payment Method = unknown	3,178
+Location = unknown	3,961
 
-In real-world data analytics, datasets rarely come clean. This project addresses common data quality issues found in transactional datasets, including:
+Use with care: time-based analysis excludes the 460 rows without a date, and item-level analysis excludes the 480 rows without an item. Use the flags to filter them in or out explicitly.
 
-* **Missing Numerical Values:** Imputing missing prices, quantities, and totals using domain-specific logic and descriptive statistics.
-* **Text Normalization:** Standardizing category names, payment methods, and store locations.
-* **Date Parsing & Imputation:** Formatting mixed-string dates and handling missing timestamps.
-* **Audit Flags Creation:** Adding metadata flags (`Item_missing`, `Date_missing`, `Numeric_missing`) to keep track of imputed records for auditability.
+Repository contents
+File	Description
+dirty_cafe_sales.ipynb	The cleaning notebook, step by step with explanations
+output.csv	The cleaned dataset (11 columns, including the 3 flags)
+cleaning_decisions.md	Detailed documentation of each cleaning decision
+How to run
+Download dirty_cafe_sales.csv from Kaggle and place it next to the notebook.
+Install the requirements:
+bash
+   pip install pandas numpy jupyter
+Open dirty_cafe_sales.ipynb and run all cells. The cleaned data is written to output.csv.
+Tools
 
----
-
-## 🛠️ Data Cleaning Pipeline Workflow
-
-```
-[Raw Data: dirty_cafe_sales.csv] (10,000 Records)
-                     │
-                     ▼
-         1. Numerical Imputation & Math Recalculation
-   (Quantity * Price Per Unit = Total Spent)
-                     │
-                     ▼
-         2. Categorical Normalization & Handling Unknowns
-   (Standardize Location, Payment Methods, Items)
-                     │
-                     ▼
-         3. Date Parsing & Formatting
-   (Unified YYYY-MM-DD Format)
-                     │
-                     ▼
-         4. Feature Engineering / Audit Flag Creation
-   (Track imputed values without losing original context)
-                     │
-                     ▼
-[Clean Data: output.csv] (Production Ready)
-```
-
----
-
-## 🔍 Key Data Cleaning Logic
-
-### 1. Mathematical Consistency & Recalculation
-* **If `Total Spent` is missing:** Calculated via `Quantity` × `Price Per Unit`.
-* **If `Price Per Unit` is missing:** Inferred using `Total Spent` / `Quantity` or filled using the item's `Median` price.
-* **If `Quantity` is missing:** Derived via `Total Spent` / `Price Per Unit`.
-
-### 2. Categorical Cleaning
-* Unstandardized text values like `UNKNOWN`, `ERROR`, or blank strings in `Payment Method` and `Location` are grouped into standardized categories.
-
-### 3. Auditability (Missing Value Flags)
-To maintain transparency, binary indicator columns were created:
-* `Item_missing`: `1` if the item name was reconstructed/missing, `0` otherwise.
-* `Date_missing`: `1` if the transaction timestamp was imputed, `0` otherwise.
-* `Numeric_missing`: `1` if any numerical field required calculation/imputation, `0` otherwise.
-
----
-
-## 📁 Repository Structure
-
-```text
-.
-├── dirty_cafe_sales.csv   # Original dirty dataset
-├── output.csv             # Cleaned and processed dataset
-├── data_cleaning.py       # Main Python processing script
-├── README.md              # Project documentation
-└── requirements.txt       # Dependencies
-```
-
----
-
-## 🚀 How to Run
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/muyosry/cafe-sales-data-cleaning.git
-cd cafe-sales-data-cleaning
-```
-
-### 2. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Run the Cleaning Script
-```bash
-python data_cleaning.py
-```
-
----
-
-## 📊 Results Summary
-
-| Metric | Pre-Cleaning | Post-Cleaning |
-| :--- | :--- | :--- |
-| **Total Rows** | 10,000 | 10,000 |
-| **Missing Prices/Totals** | Present | Fully Resolved (0 Missing) |
-| **Date Inconsistencies** | Mixed Formats | Standardized `YYYY-MM-DD` |
-| **Categorical Errors** | Present (`ERROR`, `UNKNOWN`) | Standardized Categories |
-| **Data Readiness** | Unusable for ML/BI | Ready for Analysis & Visualization |
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](../../issues).
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+Python · pandas · NumPy · Jupyter Notebook
